@@ -1,0 +1,46 @@
+name: CI/CD for Random Number Generator App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout source code
+      uses: actions/checkout@v2
+      
+    - name: Set up Python environment
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Build Docker image
+      run: |
+        docker build -t random-number-generator .
+        echo ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }} | base64 -d > gcp-key.json
+        gcloud auth activate-service-account --key-file=gcp-key.json
+        docker tag random-number-generator gcr.io/${{ secrets.GCP_PROJECT_ID }}/random-number-generator:${{ github.sha }}
+        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/random-number-generator:${{ github.sha }}
+      env:
+        GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        TAG: ${{ github.sha }}
+
+    - name: Deploy to Google Cloud Run
+      uses: GoogleCloudPlatform/github-actions/deploy-cloudrun@main
+      with:
+        service: random-number-service
+        image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/random-number-generator:${{ github.sha }}
+      env:
+        PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        REGION: us-central1
+        CLOUDSDK_CORE_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
+        CLOUDSDK_COMPUTE_ZONE: us-central1-a
