@@ -23,18 +23,11 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app .
-          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/rangen .
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/rangen
 
-      - name: Check if service exists
-        id: check_service
+      - name: Deploy to GCP
         run: |
-          gcloud run services describe my-app --platform managed --region us-central1 || echo "::set-output name=exists::false"
-        continue-on-error: true
-
-      - name: Create service if it doesn't exist
-        if: steps.check_service.outputs.exists == 'false'
-        run: |
-          gcloud run deploy my-app --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/my-app --platform managed --region us-central1
+          gcloud run deploy rangen --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/rangen --platform managed --region us-central1
         env:
           PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
